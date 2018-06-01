@@ -4,8 +4,9 @@ import quandl
 import json
 import os
 import pprint
+import sys
 from datetime import datetime
-
+import numpy as np
 
 quandl.ApiConfig.api_key = os.environ['QUANDL_CODE']
 
@@ -36,6 +37,15 @@ def create_output(data):
             output[ticker][month] = {'average_open': open_val, 'average_close' : close_val}
     return output
 
+def find_biggest_loser(data):
+    """Using the input data, determine the stock which had most days closing lower then opening."""
+    data['loser_flag'] = np.where(data['close'] < data['open'], 1, 0)
+    loser_count_df = data.groupby(['ticker']).sum()
+    biggest_loser = loser_count_df[loser_count_df['loser_flag'] == max(loser_count_df['loser_flag'])]
+    biggest_loser = json.loads(biggest_loser.to_json(orient='table'))['data'][0]
+    print('The biggest loser is ' + biggest_loser['ticker'] + ' which closed loser than it opened on ' +  str(biggest_loser['loser_flag']) + ' days.')
+    return biggest_loser['ticker'], biggest_loser['loser_flag']
+
 
 
 if __name__ == '__main__':
@@ -43,4 +53,8 @@ if __name__ == '__main__':
     raw_df = extract_data()
     agg_df = aggregate_and_convert_to_dictionary(raw_df)
     result = create_output(agg_df)
+    print(raw_df)
     pp.pprint(result)
+    if len(sys.argv) > 1 and sys.argv[1] == 'loser':
+        print('\n')
+        find_biggest_loser(raw_df)
